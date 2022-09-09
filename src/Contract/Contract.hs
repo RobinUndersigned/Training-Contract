@@ -55,7 +55,6 @@ data BookTrainingDatum = BookTrainingDatum
     } deriving (Show, Generic, FromJSON, ToJSON)
 
 PlutusTx.unstableMakeIsData ''BookTrainingDatum
---PlutusTx.makeLift ''BookTrainingDatum
 
 -- Redeemers for this Contract
 data BookingAction = Cancel | Fullfill | Delay
@@ -63,13 +62,15 @@ data BookingAction = Cancel | Fullfill | Delay
 
 PlutusTx.unstableMakeIsData ''BookingAction
 
--- Validator
+-- Validator for On-Chain validation
+-- When validating a Cancel or Delay action the transaction must be signed by the client and and within the cancelDeadline of the Booking
+-- When validating a Fullfill action the transaction must be signed by the trainer and the cancel deadline has to be passed
 {-# INLINABLE mkValidator #-}
 mkValidator :: BookTrainingDatum -> BookingAction -> ScriptContext -> Bool
 mkValidator dat redeemer ctx = case redeemer of
-  Cancel   -> traceIfFalse "client's signature missing" $ signedByClient && traceIfFalse "deadline passed"  withinDeadlineRange
-  Delay    -> traceIfFalse "client's signature missing" $ signedByClient && traceIfFalse "deadline passed"  withinDeadlineRange
-  Fullfill -> traceIfFalse "Fullfill Invalid"           $ signedByTrainer && traceIfFalse "within Deadline" passedDeadline
+  Cancel   -> traceIfFalse "client's signature missing" $ signedByClient  && traceIfFalse "deadline passed"  withinDeadlineRange
+  Delay    -> traceIfFalse "client's signature missing" $ signedByClient  && traceIfFalse "deadline passed"  withinDeadlineRange
+  Fullfill -> traceIfFalse "Fullfill Invalid"           $ signedByTrainer && traceIfFalse "within Deadline"  passedDeadline
   where
     info :: TxInfo
     info = scriptContextTxInfo ctx
@@ -86,10 +87,7 @@ mkValidator dat redeemer ctx = case redeemer of
     withinDeadlineRange :: Bool
     withinDeadlineRange = overlaps (to $ cancelDeadline dat) $ txInfoValidRange info
 
-clientRange :: BookTrainingDatum -> POSIXTimeRange
-clientRange btd = Interval.to (cancelDeadline btd)
-
-
+-- Typeinstances for Datum and Redeemer of the BookTraining Contract
 data BookTraining
 instance Scripts.ValidatorTypes BookTraining where
     type instance DatumType BookTraining = BookTrainingDatum
@@ -112,7 +110,7 @@ valHash = Scripts.validatorHash typedValidator
 scrAddress :: Ledger.Address
 scrAddress = scriptAddress validator
 
--- Off Chain helpers
+-- Off-Chain helpers
 --Deadline (dl) should not be reached
 isCancable :: POSIXTime -> POSIXTime -> Bool
 isCancable n dl = n <= dl
@@ -125,6 +123,8 @@ isDelayable n dl = n <= (dl - 20000)
 isFullfilled :: POSIXTime -> POSIXTime -> Bool
 isFullfilled n dl = n > dl
 
+
+-- Off-Chain Code
 
 --Params for Endpoint Book Training
 data BookTrainingParams = BookTrainingParams
@@ -162,12 +162,7 @@ type BookingSchema =
              .\/ Endpoint "fullfillTraining" FullfillTrainingParams
              .\/ Endpoint "delayTraining" DelayTrainingParams
 
--- BOOK TRAINING
--- Angabe eines Trainers Public Payment Hash Key of a Wallet
--- Angabe eines Clients Public Payment Hask Key
--- Deadline wird automatisch gesetzt
-
-
+-- Starts the contract and submits a transaction that locks 10_000_000 Lovelace and holds an BookTrainingDatum Record in the script
 bookTraining :: AsContractError e => BookTrainingParams -> Contract w s e ()
 bookTraining btp = do
     pkh      <- ownPaymentPubKeyHash
