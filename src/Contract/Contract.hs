@@ -68,9 +68,9 @@ PlutusTx.unstableMakeIsData ''BookingAction
 {-# INLINABLE mkValidator #-}
 mkValidator :: BookTrainingDatum -> BookingAction -> ScriptContext -> Bool
 mkValidator dat redeemer ctx = case redeemer of
-  Cancel   -> traceIfFalse "client's signature missing" $ signedByClient  && traceIfFalse "deadline passed"  withinDeadlineRange
-  Delay    -> traceIfFalse "client's signature missing" $ signedByClient  && traceIfFalse "deadline passed"  withinDeadlineRange
-  Fullfill -> traceIfFalse "Fullfill Invalid"           $ signedByTrainer && traceIfFalse "within Deadline"  passedDeadline
+  Cancel   -> traceIfFalse "client's signature missing"  $ signedByClient  && traceIfFalse "deadline passed"  withinDeadlineRange
+  Delay    -> traceIfFalse "client's signature missing"  $ signedByClient  && traceIfFalse "deadline passed"  withinDeadlineRange
+  Fullfill -> traceIfFalse "trainer's signature missing" $ signedByTrainer && traceIfFalse "within Deadline"  passedDeadline
   where
     info :: TxInfo
     info = scriptContextTxInfo ctx
@@ -128,21 +128,21 @@ isFullfilled n dl = n > dl
 
 --Params for Endpoint Book Training
 data BookTrainingParams = BookTrainingParams
-    { btTrainer  :: PaymentPubKeyHash
+    { btTrainer    :: PaymentPubKeyHash
     , btBookingId  :: Integer
     } deriving (Generic, ToJSON, FromJSON, ToSchema)
 
 --Params for Endpoint Cancel Training
 data CancelTrainingParams = CancelTrainingParams
     {
-      ctTrainer  :: !PaymentPubKeyHash
+      ctTrainer    :: !PaymentPubKeyHash
     , ctBookingId  :: !Integer
     } deriving (Generic, ToJSON, FromJSON, ToSchema)
 
 --Params for Endpoint Delay Training
 data DelayTrainingParams = DelayTrainingParams
     {
-      dTrainer  :: !PaymentPubKeyHash
+      dTrainer    :: !PaymentPubKeyHash
     , dBookingId  :: !Integer
     } deriving (Generic, ToJSON, FromJSON, ToSchema)
 
