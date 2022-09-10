@@ -48,7 +48,7 @@ bookingTraceDelay n = do
 
 -- Books a training, waits n Slots and performs a fullfillment of booking by the trainer
 bookingTraceFullfill :: NumberOfSlots -> EmulatorTrace ()
-bookingTraceFullfill = do
+bookingTraceFullfill n = do
   h1 <- activateContractWallet (knownWallet 1) endpoints
   h2 <- activateContractWallet (knownWallet 2) endpoints
   let cpkh  = mockWalletPaymentPubKeyHash $ knownWallet 1
