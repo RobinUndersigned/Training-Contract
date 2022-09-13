@@ -251,8 +251,7 @@ delayTraining dtp = do
 fullfillTraining :: forall w s. FullfillTrainingParams -> Contract w s Text ()
 fullfillTraining fftp = do
   now   <- currentTime
-  pkh   <- ownPaymentPubKeyHash
-  (oref, o, d) <- findBooking (ffBookingId fftp) pkh
+  (oref, o, d) <- findBooking (ffBookingId fftp) (ffClient fftp)
   if isFullfilled now (cancelDeadline d)
     then do
       let r       = Redeemer $ PlutusTx.toBuiltinData Fullfill
