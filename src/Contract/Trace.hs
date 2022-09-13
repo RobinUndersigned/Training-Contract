@@ -41,8 +41,8 @@ bookingTraceDelay n = do
           }
   void $ Emulator.waitNSlots n
   callEndpoint @"delayTraining" h1 $ DelayTrainingParams
-    { dTrainer   = pkh
-    , dBookingId = 10001
+    { dtTrainer   = pkh
+    , dtBookingId = 10001
     }
   void $ Emulator.waitNSlots 10
 

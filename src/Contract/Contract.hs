@@ -122,20 +122,6 @@ valHash = Scripts.validatorHash typedValidator
 scrAddress :: Ledger.Address
 scrAddress = scriptAddress validator
 
--- Off-Chain helpers
---Deadline (dl) should not be reached
-isCancable :: POSIXTime -> POSIXTime -> Bool
-isCancable n dl = n <= dl
-
---Delaying is only allow during the first half of the deadline (dl) interval
-isDelayable :: POSIXTime -> POSIXTime -> Bool
-isDelayable n dl = n <= (dl - 20000)
-
---Fullfilling is only possible after the deadline (dl) interveral
-isFullfilled :: POSIXTime -> POSIXTime -> Bool
-isFullfilled n dl = n > dl
-
-
 -- Off-Chain Code
 -- Params for Endpoint Book Training
 data BookTrainingParams = BookTrainingParams
@@ -153,8 +139,8 @@ data CancelTrainingParams = CancelTrainingParams
 -- Params for Endpoint Delay Training
 data DelayTrainingParams = DelayTrainingParams
     {
-      dTrainer    :: !PaymentPubKeyHash
-    , dBookingId  :: !Integer
+      dtTrainer    :: !PaymentPubKeyHash
+    , dtBookingId  :: !Integer
     } deriving (Generic, ToJSON, FromJSON, ToSchema)
 
 -- Params for Endpoint Fullfill Training
@@ -174,6 +160,19 @@ type BookingSchema =
      .\/ Endpoint "cancelTraining" CancelTrainingParams
      .\/ Endpoint "fullfillTraining" FullfillTrainingParams
      .\/ Endpoint "delayTraining" DelayTrainingParams
+
+-- Off-Chain helpers
+--Deadline (dl) should not be reached
+isCancable :: POSIXTime -> POSIXTime -> Bool
+isCancable n dl = n <= dl
+
+--Delaying is only allow during the first half of the deadline (dl) interval
+isDelayable :: POSIXTime -> POSIXTime -> Bool
+isDelayable n dl = n <= (dl - 20000)
+
+--Fullfilling is only possible after the deadline (dl) interveral
+isFullfilled :: POSIXTime -> POSIXTime -> Bool
+isFullfilled n dl = n > dl
 
 -- Starts the contract and submits a transaction that locks 10_000_000 Lovelace and holds an BookTrainingDatum Record in the script
 bookTraining :: AsContractError e => BookTrainingParams -> Contract w s e ()
@@ -232,7 +231,7 @@ cancelTraining ctp = do
 delayTraining :: forall w s. DelayTrainingParams -> Contract w s Text ()
 delayTraining dtp = do
     now          <- currentTime
-    (oref, o, d) <- findBooking (dBookingId dtp) (dTrainer dtp)
+    (oref, o, d) <- findBooking (dtBookingId dtp) (dtTrainer dtp)
     if isDelayable now (cancelDeadline d)
       then do
           let tPayout = trainerPayout (deposit d)
@@ -248,7 +247,7 @@ delayTraining dtp = do
               lookups = Constraints.typedValidatorLookups typedValidator <>
                         Constraints.otherScript validator                <>
                         Constraints.unspentOutputs (Map.singleton oref o)
-              tx      = Constraints.mustPayToPubKey (dTrainer dtp) (Ada.lovelaceValueOf tPayout) <>
+              tx      = Constraints.mustPayToPubKey (dtTrainer dtp) (Ada.lovelaceValueOf tPayout) <>
                         Constraints.mustValidateIn (from now)                                    <>
                         Constraints.mustPayToTheScript (dat') (Ada.lovelaceValueOf deposit')     <>
                         Constraints.mustSpendScriptOutput oref r
@@ -299,7 +298,7 @@ findBooking bId pkh = do
                     -- If there is a UTXO with a valid type of Datum, we check if the booking ID and the trainer
                     -- are both the same as in the Redeemer
                     | bookingId d == bId && (trainer d == pkh || client d == pkh) -> return (oref, o, d)
-                    | otherwise                              -> Contract.throwError "Booking missmatch"
+                    | otherwise                                                   -> Contract.throwError "Booking missmatch"
         _           -> Contract.throwError "Booking utxo not found"
 
 
