@@ -161,19 +161,6 @@ type BookingSchema =
      .\/ Endpoint "fullfillTraining" FullfillTrainingParams
      .\/ Endpoint "delayTraining" DelayTrainingParams
 
--- Off-Chain helpers
---Deadline (dl) should not be reached
-isCancable :: POSIXTime -> POSIXTime -> Bool
-isCancable n dl = n <= dl
-
---Delaying is only allow during the first half of the deadline (dl) interval
-isDelayable :: POSIXTime -> POSIXTime -> Bool
-isDelayable n dl = n <= (dl - 20000)
-
---Fullfilling is only possible after the deadline (dl) interveral
-isFullfilled :: POSIXTime -> POSIXTime -> Bool
-isFullfilled n dl = n > dl
-
 -- Starts the contract and submits a transaction that locks 10_000_000 Lovelace and holds an BookTrainingDatum Record in the script
 bookTraining :: AsContractError e => BookTrainingParams -> Contract w s e ()
 bookTraining btp = do
@@ -279,6 +266,20 @@ fullfillTraining fftp = do
       logInfo @String $ "Successfully fullfilled training and payout"
     else
       Contract.throwError "ERROR: Training has not been fullfilled yet"
+
+
+-- Off-Chain helpers
+--Deadline (dl) should not be reached
+isCancable :: POSIXTime -> POSIXTime -> Bool
+isCancable n dl = n <= dl
+
+--Delaying is only allow during the first half of the deadline (dl) interval
+isDelayable :: POSIXTime -> POSIXTime -> Bool
+isDelayable n dl = n <= (dl - 20000)
+
+--Fullfilling is only possible after the deadline (dl) interveral
+isFullfilled :: POSIXTime -> POSIXTime -> Bool
+isFullfilled n dl = n > dl
 
 -- Finds a Booking UTXO by a given booking ID and Trainer or Client Public Key Hash
 findBooking :: Integer
